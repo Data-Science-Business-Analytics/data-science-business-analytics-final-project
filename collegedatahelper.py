@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-years = [
+years_train = [
 #     '1996_97',
 #     '1997_98',
 #     '1998_99',
@@ -20,9 +20,12 @@ years = [
 #     '2011_12',
     '2012_13',
     '2013_14',
-    # '2014_15',
-    # '2015_16',
-    # '2016_17',
+    '2014_15'
+]
+
+years_test =[
+    '2015_16',
+    '2016_17',
     '2017_18'
 ]
 
@@ -84,21 +87,48 @@ train_blacklist = [
     'FAMINC_IND'
 ]
 
-def format_df(df, isTrain):
+train_whitelist = [
+    'CONTROL',
+    'debt_to_income'
+]
+
+def intersection(lst1, lst2): 
+    lst3 = [value for value in lst1 if value in lst2] 
+    return lst3 
+
+
+def format_df(df, isTrain, train_features=[]):
     df_copy = df.copy()
 
-    # Replace all Privacy Supressed with NaN
-    df_copy = df_copy.replace('PrivacySuppressed',np.NaN).dropna(subset=['DEBT_MDN'])
-
-    # Make everything numeric
-    df_copy = df_copy.apply(pd.to_numeric, errors='ignore')
-
-    # If isTrain - delete all rows that don't contain DEBT_MDN or MD_EARN_WNE_P6
+    # Replace Privacy Suppressed with NaN
+    # Get rid of all nan for DEBT_MDN and MD_EARN_WNE_P6 (for train)
     if isTrain:
-        df_copy = df_copy.dropna(subset=['DEBT_MDN', 'MD_EARN_WNE_P6'])
+        df_copy = df_copy.replace('PrivacySuppressed',np.NaN).dropna(subset=['DEBT_MDN', 'MD_EARN_WNE_P6'])
+        
+        # Make everything numeric
+        df_copy = df_copy.apply(pd.to_numeric, errors='ignore')
+    
+        # Set debt to income ratio column
         df_copy['debt_to_income'] = df_copy['DEBT_MDN'] / df_copy['MD_EARN_WNE_P6']
 
-    return df_copy
+
+        train_features_true = intersection(df_copy.columns, train_features)
+        df_copy = df_copy[train_features_true].fillna(0)
+
+    else:
+        df_copy = df_copy.replace('PrivacySuppressed',np.NaN)
+        # Make everything numeric
+        df_copy = df_copy.apply(pd.to_numeric, errors='ignore')
+
+
+    pub, priv, priv_prof = clean_df_nan(df_copy, isTrain)
+
+    return {
+        'public': pub,
+        'private': priv,
+        'private_for_profit': priv_prof
+    }
+
 
 def clean_df(df):
     df_copy = df.copy()
@@ -149,12 +179,77 @@ def getTrainFeatures(features_df):
     train_features = [train_features for train_features in train_features if train_features not in train_blacklist]
     # train_features = np.concatenate((train_features, ), axis=None)
 
+    # Add whitelist
+    train_features.extend(train_whitelist)
+
     return train_features
 
-def create_data_dict(datadir):
+def create_data_dict(datadir, featuresdir, full=False):
+    # Get Features
+    features_df = get_features_dictionary(featuresdir)
+    train_features = getTrainFeatures(features_df)
+
+
     data_dict = {}
 
-    for year in years:
+    for year in years_train:
         data_dict[year] = pd.read_csv(f'{datadir}/MERGED{year}_PP.csv', low_memory=False)
+        # Format DF (train)
+        data_dict[year] = format_df(data_dict[year], True, train_features)
+        
+    for year in years_test:
+        data_dict[year] = pd.read_csv(f'{datadir}/MERGED{year}_PP.csv', low_memory=False)
+        # Format DF (test)
+        data_dict[year] = format_df(data_dict[year], False, train_features)
     
     return data_dict
+
+
+
+def dropbadvalues(df):
+    df_copy = df.copy()
+    rows = df_copy.shape[0]
+    df_copy = df_copy.dropna(axis=1, thresh=rows*0.7)
+    
+#     df_copy = df_copy.dropna(axis=0) 
+    
+    return df_copy
+
+
+def clean_df_nan(df, isTrain):
+    df_copy = df.copy()
+
+    df_copy_pub = df_copy.loc[df_copy['CONTROL'] == 1]
+    df_copy_priv = df_copy.loc[df_copy['CONTROL'] == 2]
+    df_copy_priv_prof = df_copy.loc[df_copy['CONTROL'] == 3]
+    
+    if isTrain:
+        df_copy_pub = dropbadvalues(df_copy_pub)
+        df_copy_priv = dropbadvalues(df_copy_priv)
+        df_copy_priv_prof = dropbadvalues(df_copy_priv_prof)
+        
+    return df_copy_pub, df_copy_priv, df_copy_priv_prof
+
+
+
+# Data from Random Forest
+important_features_public = [
+    'SAT_AVG_ALL', 'RET_FT4', 'ADM_RATE_ALL', 'UGDS_BLACK', 'PPTUG_EF',
+    'TUITIONFEE_IN', 'UGDS_ASIAN', 'NPT4_PUB', 'PCIP50', 'UGDS_WHITE',
+    'COSTT4_A', 'UGDS_HISP', 'UG25ABV', 'UGDS_NHPI', 'TUITIONFEE_OUT',
+    'UGDS_AIAN', 'NPT45_PUB', 'PCIP14', 'NPT4_3075_PUB', 'GRADS'
+]
+
+important_features_private = [
+    'PCIP50', 'TUITIONFEE_IN', 'ADM_RATE_ALL', 'PCIP23', 'RET_FT4',
+    'PPTUG_EF', 'GRADS', 'UGDS_BLACK', 'NPT4_3075_PRIV', 'NPT42_PRIV',
+    'PFTFTUG1_EF', 'UG25ABV', 'UGDS_WHITE', 'PCIP52', 'UGDS_HISP',
+    'SAT_AVG_ALL', 'UGDS', 'NPT41_PRIV', 'PCIP51', 'D_PCTPELL_PCTFLOAN'
+]
+
+important_features_private_profit = [
+    'TUITIONFEE_IN', 'PCIP50', 'PPTUG_EF', 'CIPTFBS1', 'GRADS',
+    'UGDS_WOMEN', 'PFTFTUG1_EF', 'UG25ABV', 'UGDS_WHITE', 'TUITIONFEE_OUT',
+    'UGDS_HISP', 'UGDS_ASIAN', 'RET_FTL4', 'TUITIONFEE_PROG', 'UGDS_BLACK',
+    'MTHCMP1', 'UGDS', 'NUM4_PRIV', 'NUM42_PRIV', 'NUM41_PRIV'
+]
