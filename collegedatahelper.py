@@ -184,11 +184,13 @@ def getTrainFeatures(features_df):
 
     return train_features
 
-def create_data_dict(datadir, featuresdir, full=False):
+def create_data_dict(datadir, featuresdir, whitelist=[]):
     # Get Features
     features_df = get_features_dictionary(featuresdir)
     train_features = getTrainFeatures(features_df)
 
+    # Add whitelist to train_features
+    train_features.extend(whitelist)
 
     data_dict = {}
 
