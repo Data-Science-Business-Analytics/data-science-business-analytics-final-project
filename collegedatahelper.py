@@ -1,23 +1,29 @@
 import pandas as pd
 import numpy as np
 
+years_train_all = [
+    # '1996_97',
+    # '1997_98',
+    # '1998_99',
+    # '1999_00',
+    # '2000_01',
+    # '2001_02',
+    # '2002_03',
+    '2003_04',
+    '2004_05',
+    '2005_06',
+    '2006_07',
+    '2007_08',
+    '2008_09',
+    '2009_10',
+    '2010_11',
+    '2011_12',
+    '2012_13',
+    '2013_14',
+    '2014_15'
+]
+
 years_train = [
-#     '1996_97',
-#     '1997_98',
-#     '1998_99',
-#     '1999_00',
-#     '2000_01',
-#     '2001_02',
-#     '2002_03',
-#     '2003_04',
-#     '2004_05',
-#     '2005_06',
-#     '2006_07',
-#     '2007_08',
-#     '2008_09',
-#     '2009_10',
-#     '2010_11',
-#     '2011_12',
     '2012_13',
     '2013_14',
     '2014_15'
@@ -183,6 +189,32 @@ def getTrainFeatures(features_df):
     train_features.extend(train_whitelist)
 
     return train_features
+
+def create_data_dict_full(datadir):
+    data_dict = {}
+
+    for year in years_train_all:
+        df_copy = pd.read_csv(f'{datadir}/MERGED{year}_PP.csv', low_memory=False)
+        df_copy = df_copy.replace('PrivacySuppressed',np.NaN).dropna(subset=['DEBT_MDN', 'MD_EARN_WNE_P6'])
+        
+        # Make everything numeric
+        df_copy = df_copy.apply(pd.to_numeric, errors='ignore')
+    
+        # Set debt to income ratio column
+        df_copy['debt_to_income'] = df_copy['DEBT_MDN'] / df_copy['MD_EARN_WNE_P6']
+
+        data_dict[year] = df_copy
+
+    for year in years_test:
+        df_copy = pd.read_csv(f'{datadir}/MERGED{year}_PP.csv', low_memory=False)
+        df_copy = df_copy.replace('PrivacySuppressed',np.NaN)
+        
+        # Make everything numeric
+        df_copy = df_copy.apply(pd.to_numeric, errors='ignore')
+
+        data_dict[year] = df_copy
+
+    return data_dict
 
 def create_data_dict(datadir, featuresdir, whitelist=[]):
     # Get Features
