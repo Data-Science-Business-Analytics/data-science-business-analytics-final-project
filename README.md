@@ -9,6 +9,8 @@ Charles Laurent, AJ Marino, Jenny Park,
 ## Datasets
 
 * College Scorecard Data: https://collegescorecard.ed.gov/data/
+* College Scorecard Data Dictionary: https://collegescorecard.ed.gov/assets/CollegeScorecardDataDictionary.xlsx
+* College Scorecard Data Documentation: https://collegescorecard.ed.gov/data/documentation/
 * GDP Data: https://www-statista-com.proxy.library.nyu.edu/statistics/188105/annual-gdp-of-the-united-states-since-1990/
 * State Abbreviations: http://worldpopulationreview.com/states/state-abbreviations/
 * Median Household Income by State: https://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?src=bkmk
