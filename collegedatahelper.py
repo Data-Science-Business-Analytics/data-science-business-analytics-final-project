@@ -112,7 +112,8 @@ train_blacklist = [
 train_whitelist = [
     'CONTROL',
     'debt_to_income',
-    'UNITID'
+    'UNITID', 
+    'year'
 ]
 
 def intersection(lst1, lst2): 
